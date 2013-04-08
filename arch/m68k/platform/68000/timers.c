@@ -24,7 +24,16 @@
 #include <asm/setup.h>
 #include <asm/pgtable.h>
 #include <asm/machdep.h>
+#if defined(CONFIG_M68EZ328)
+#include <asm/MC68EZ328.h>
+#else
+#if defined(CONFIG_M68VZ328)
 #include <asm/MC68VZ328.h>
+#else
+#include <asm/MC68328.h>
+#endif /* CONFIG_M68VZ328 */
+#endif /* CONFIG_M68EZ328 */
+
 
 /***************************************************************************/
 
@@ -105,18 +114,19 @@ void hw_timer_init(irq_handler_t handler)
 	/* disable timer 1 */
 	TCTL = 0;
 
-	/* set ISR */
-	setup_irq(TMR_IRQ_NUM, &m68328_timer_irq);
-
 	/* Restart mode, Enable int, Set clock source */
 	TCTL = TCTL_OM | TCTL_IRQEN | CLOCK_SOURCE;
 	TPRER = CLOCK_PRE;
 	TCMP = TICKS_PER_JIFFY;
 
-	/* Enable timer 1 */
-	TCTL |= TCTL_TEN;
 	clocksource_register_hz(&m68328_clk, TICKS_PER_JIFFY*HZ);
 	timer_interrupt = handler;
+	
+	/* set ISR */
+	setup_irq(TMR_IRQ_NUM, &m68328_timer_irq);
+
+	/* Enable timer 1 */
+	TCTL |= TCTL_TEN;
 }
 
 /***************************************************************************/

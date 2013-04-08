@@ -70,6 +70,7 @@ void config_BSP(char *command, int len)
 #endif
  
   mach_hwclk = m68328_hwclk;
+  mach_sched_init = hw_timer_init;
   mach_reset = m68ez328_reset;
 }
 

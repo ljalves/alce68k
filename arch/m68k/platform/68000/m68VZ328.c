@@ -182,6 +182,7 @@ void config_BSP(char *command, int size)
 	init_hardware(command, size);
 
 	mach_hwclk = m68328_hwclk;
+	mach_sched_init = hw_timer_init;
 	mach_reset = m68vz328_reset;
 }
 

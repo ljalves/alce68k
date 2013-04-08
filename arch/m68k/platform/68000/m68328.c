@@ -20,9 +20,6 @@
 #include <linux/rtc.h>
 #include <asm/machdep.h>
 #include <asm/MC68328.h>
-#if defined(CONFIG_PILOT) || defined(CONFIG_INIT_LCD)
-#include "bootlogo.h"
-#endif
 
 /***************************************************************************/
 
@@ -42,13 +39,14 @@ void m68328_reset (void)
 
 /***************************************************************************/
 
-void config_BSP(char *command, int len)
+void __init config_BSP(char *command, int len)
 {
   printk(KERN_INFO "\n68328 support D. Jeff Dionne <jeff@uclinux.org>\n");
   printk(KERN_INFO "68328 support Kenneth Albanowski <kjahds@kjshds.com>\n");
   printk(KERN_INFO "68328/Pilot support Bernhard Kuhn <kuhn@lpr.e-technik.tu-muenchen.de>\n");
 
   mach_hwclk = m68328_hwclk;
+  mach_sched_init = hw_timer_init;
   mach_reset = m68328_reset;
 }
 
