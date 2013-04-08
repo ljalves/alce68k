@@ -1,0 +1,92 @@
+menuconfig ALCE68K
+	bool "Alcetronics M68K board support."
+	depends on M68000
+	help
+	  Support for the Alcetronics M68K board.
+
+if ALCE68K
+
+config HEARTBEAT
+	bool "Use Red LED as a heartbeat"
+	help
+	  Use the red LED (FPGA error) as a load meter.  The exact
+	  behavior is platform-dependent, but normally the flash frequency is
+	  a hyperbolic function of the 5-minute load average.
+
+config SERIAL_FT245_ALCE
+	bool "Alcetronics M68K board FT245 serial support"
+	depends on ALCE68K
+	select SERIAL_CORE
+	help
+	  This driver supports the FTDI245 module in the Alcetronics M68K board.
+
+config SERIAL_ALCE_CONSOLE
+	bool "Alcetronics M68K board FT245 serial console support"
+	depends on SERIAL_FT245_ALCE
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enables the FTDI245 module to be the system serial console.
+
+config SERIAL_FPGA_ALCE
+	bool "Alcetronics M68K board FPGA UART serial support"
+	depends on ALCE68K
+	select SERIAL_CORE
+	help
+	  This driver supports the FPGA UART module in the Alcetronics M68K board.
+
+
+config ETH_ALCE
+	tristate "Alcetronics M68K ethernet support"
+	depends on ALCE68K
+	depends on ETHERNET
+	select CRC32
+	---help---
+	  Support fot the Alcetronics M68K ethernet support.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called alcenet.
+
+config ETH_ALCE_WRITEVERIFY
+	bool "Enable write verify"
+	depends on ETH_ALCE
+	---help---
+	  Enable the verify after the buffer write useful for debugging purpose.
+	  If unsure, say N.
+
+
+	  
+config MCP3208_ADC
+	bool "MCP3208 ADC driver"
+	depends on ALCE68K
+	depends on IIO
+	help
+	  Say yes here to build support for MCP3208 ADC.
+	  
+	  
+config MMC_ALCE
+	tristate "MMC/SD/SDIO over SPI (alce68k)"
+	depends on ALCE68K
+	depends on MMC
+	select CRC7
+	select CRC_ITU_T
+	help
+	  Alce68k MMC/SD/SDIO SPI controller.
+
+comment "Experimental / Testing / Off-board devices"
+
+config MAS3507D_ALCE
+	bool "Alce68k mas3507d char driver"
+	default n
+	help
+	  Say Y here to test mas3507d simple char driver.
+
+config MAX31855_ALCE
+	bool "MAX31855 Thermocouple IC driver"
+	depends on ALCE68K
+	depends on IIO
+	help
+	  Say yes here to build support for MAX31855.
+	  
+	  
+	  
+endif

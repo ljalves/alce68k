@@ -118,6 +118,7 @@ core-$(CONFIG_M68360)		+= arch/m68k/platform/68360/
 core-$(CONFIG_M68000)		+= arch/m68k/platform/68000/
 core-$(CONFIG_COLDFIRE)		+= arch/m68k/platform/coldfire/
 
+core-$(CONFIG_ALCE68K)		+= arch/m68k/platform/68000/alce68k/
 
 all:	zImage
 

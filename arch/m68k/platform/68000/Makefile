@@ -15,4 +15,7 @@ obj-$(CONFIG_M68EZ328)	+= m68EZ328.o
 obj-$(CONFIG_M68VZ328)	+= m68VZ328.o
 obj-$(CONFIG_ROM)	+= romvec.o
 
+# Alcetronics M68K board
+obj-$(CONFIG_ALCE68K)	:= alce68k/entry-alce68k.o alce68k/ints-alce68k.o alce68k/timers-alce68k.o alce68k/config-alce68k.o
+
 extra-y 		:= head.o
