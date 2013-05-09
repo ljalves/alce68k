@@ -45,6 +45,7 @@
 
 #include "asm/alce68k.h"
 
+#include <linux/interrupt.h>
 
 /* NOTES:
  *
@@ -113,6 +114,9 @@
 
 #define SPI_SPEED		0
 
+//#define SPI_WAITBUSY	while(readb(host->membase+1)&SPICTRL_BUSY)
+#define SPI_WAITBUSY
+
 /****************************************************************************/
 
 /*
@@ -163,9 +167,13 @@ mmc_spi_readbytes(struct mmc_spi_host *host, unsigned len)
 	}
 
 	for (i = 0; i<len; i++) {
-		MMCSPI_DATA = 0xFF;
-		while (MMCSPI_CTRL & SPICTRL_BUSY);
-		*cp++ = MMCSPI_DATA;
+		//MMCSPI_DATA = 0xFF;
+		writeb(0xff, host->membase);
+		SPI_WAITBUSY;
+		//while (readb(host->membase+1) & SPICTRL_BUSY);
+		//while (MMCSPI_CTRL & SPICTRL_BUSY);
+		//*cp++ = MMCSPI_DATA;
+		writeb(*cp++, host->membase);
 	}	
 	return 0;
 }
@@ -245,11 +253,11 @@ static int mmc_spi_response_get(struct mmc_spi_host *host,
 	u8 	leftover = 0;
 	unsigned short rotator;
 	u8 	i;
-	char	tag[32];
+	//char	tag[32];
 	//u8	d;
 
-	snprintf(tag, sizeof(tag), "  ... CMD%d response SPI_%s",
-		cmd->opcode, maptype(cmd));
+	//snprintf(tag, sizeof(tag), "  ... CMD%d response SPI_%s",
+	//	cmd->opcode, maptype(cmd));
 
 	/* Except for data block reads, the whole response will already
 	 * be stored in the scratch buffer.  It's somewhere after the
@@ -258,6 +266,7 @@ static int mmc_spi_response_get(struct mmc_spi_host *host,
 	 * two data bits, but otherwise it's all ones.
 	 */
 	cp += 8;
+	//cp+=1;
 	while (cp < end && *cp == 0xff)
 		cp++;
 
@@ -283,9 +292,12 @@ static int mmc_spi_response_get(struct mmc_spi_host *host,
 				goto done;*/
 			/*if (*cp != 0xff)
 				goto checkstatus;*/
-			MMCSPI_DATA = 0xFF;
-			while (MMCSPI_CTRL & SPICTRL_BUSY);
-			*cp = MMCSPI_DATA;
+			//MMCSPI_DATA = 0xFF;
+			writeb(0xff, host->membase);
+			//while (MMCSPI_CTRL & SPICTRL_BUSY);
+			SPI_WAITBUSY; //while (readb(host->membase+1) & SPICTRL_BUSY);
+			//*cp = MMCSPI_DATA;
+			*cp = readb(host->membase);
 			if (*cp != 0xFF)
 				goto checkstatus;
 		}
@@ -308,9 +320,17 @@ checkstatus:
 				goto done;*/
 			cp = host->data->status;
 			end = cp+1;
-			MMCSPI_DATA = 0xFF;
+
+			//MMCSPI_DATA = 0xFF;
+			writeb(0xff, host->membase);
+			//while (MMCSPI_CTRL & SPICTRL_BUSY);
+			SPI_WAITBUSY; //while (readb(host->membase+1) & SPICTRL_BUSY);
+			//*cp = MMCSPI_DATA;
+			*cp = readb(host->membase);
+			
+			/*MMCSPI_DATA = 0xFF;
 			while (MMCSPI_CTRL & SPICTRL_BUSY);
-			*cp = MMCSPI_DATA;
+			*cp = MMCSPI_DATA;*/
 		}
 		rotator |= *cp++;
 		//rotator |= d;
@@ -356,13 +376,13 @@ checkstatus:
 		if (cp == end) {
 		  cp = host->data->status;
 		  end = cp+1;
-		  MMCSPI_DATA = 0xFF;
-		  while (MMCSPI_CTRL & SPICTRL_BUSY);
-		  *cp = MMCSPI_DATA;
+		  writeb(0xff, host->membase);
+		  SPI_WAITBUSY; //while(readb(host->membase+1) & SPICTRL_BUSY);
+		  *cp = readb(host->membase);
 		  while (*cp == 0) {
-		    MMCSPI_DATA = 0xFF;
-		    while (MMCSPI_CTRL & SPICTRL_BUSY);
-		    *cp = MMCSPI_DATA;
+		    writeb(0xff, host->membase);
+		    SPI_WAITBUSY; //while(readb(host->membase+1) & SPICTRL_BUSY);
+		    *cp = readb(host->membase);
 		  }
 		}
 		break;
@@ -379,9 +399,9 @@ checkstatus:
 				goto done;*/
 			cp = host->data->status;
 			end = cp+1;
-			MMCSPI_DATA = 0xFF;
-			while (MMCSPI_CTRL & SPICTRL_BUSY);
-			*cp = MMCSPI_DATA;
+			writeb(0xff, host->membase);
+			SPI_WAITBUSY; //while(readb(host->membase+1) & SPICTRL_BUSY);
+			*cp = readb(host->membase);
 		}
 		if (bitshift) {
 			rotator = leftover << 8;
@@ -405,9 +425,9 @@ checkstatus:
 					goto done;*/
 				cp = host->data->status;
 				end = cp+1;
-				MMCSPI_DATA = 0xFF;
-				while (MMCSPI_CTRL & SPICTRL_BUSY);
-				*cp = MMCSPI_DATA;
+				writeb(0xff, host->membase);
+				SPI_WAITBUSY; //while(readb(host->membase+1) & SPICTRL_BUSY);
+				*cp = readb(host->membase);
 			}
 			if (bitshift) {
 				rotator |= *cp++ << bitshift;
@@ -432,8 +452,10 @@ checkstatus:
 	}
 
 	if (value < 0)
-		printk("%s: resp %04x %08x\n",
-			tag, cmd->resp[0], cmd->resp[1]);
+		printk("MMC error: resp %04x %08x\n",
+			cmd->resp[0], cmd->resp[1]);
+		//printk("%s: resp %04x %08x\n",
+		//	tag, cmd->resp[0], cmd->resp[1]);
 
 	/* disable chipselect on errors and some success cases */
 	if (value >= 0 && cs_on)
@@ -444,7 +466,9 @@ done:
 	
 	// cs off
 	//mmc_cs_off(host);
-	MMCSPI_CTRL = SPICTRL_EN | SPI_SPEED;
+		
+	//MMCSPI_CTRL = SPICTRL_EN | SPI_SPEED;
+	writeb(SPICTRL_EN | SPI_SPEED, host->membase+1);
 
 
 	//printk("OK: %s: resp %04x %08x\n",
@@ -484,6 +508,8 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 	*cp++ = (u8)arg;
 	*cp++ = (crc7(0, &data->status[1], 5) << 1) | 0x01;
 	
+	
+	
 
 	if (cs_on && (mrq->data->flags & MMC_DATA_READ)) {
 		cp += 2;	/* min(N(CR)) + status */
@@ -513,12 +539,29 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 	
 	
 	// cs low
-	MMCSPI_CTRL = SPICTRL_EN | SPICTRL_CS | SPI_SPEED;
+	//MMCSPI_CTRL = SPICTRL_EN | SPICTRL_CS | SPI_SPEED;
+	writeb(SPICTRL_EN | SPICTRL_CS | SPI_SPEED, host->membase+1);
 
+	
+	/*writeb(0x40 | cmd->opcode, host->membase);
+	while (readb(host->membase+1) & SPICTRL_BUSY);
+	writeb((u8)(arg >> 24), host->membase);
+	while (readb(host->membase+1) & SPICTRL_BUSY);
+	writeb((u8)(arg >> 16), host->membase);
+	while (readb(host->membase+1) & SPICTRL_BUSY);
+	writeb((u8)(arg >> 8), host->membase);
+	while (readb(host->membase+1) & SPICTRL_BUSY);
+	writeb((u8)arg, host->membase);
+	while (readb(host->membase+1) & SPICTRL_BUSY);
+	writeb((crc7(0, &data->status[1], 5) << 1) | 0x01, host->membase);
+	while (readb(host->membase+1) & SPICTRL_BUSY);
+	*/
+	
 	for (i = 0; i < s; i++) {
-		MMCSPI_DATA = *cp;
-		while (MMCSPI_CTRL & SPICTRL_BUSY);
-		*cp++ = MMCSPI_DATA;
+		//MMCSPI_DATA = *cp;
+		writeb(*cp, host->membase);
+		SPI_WAITBUSY; //while (readb(host->membase+1) & SPICTRL_BUSY);//(MMCSPI_CTRL & SPICTRL_BUSY);
+		*cp++ = readb(host->membase);//MMCSPI_DATA;
 	}
 	
 	return mmc_spi_response_get(host, cmd, cs_on);
@@ -554,36 +597,36 @@ mmc_spi_writeblock(struct mmc_spi_host *host, u8 *t, unsigned long timeout, unsi
 
 	// write 512 bytes
 	for (i = 0; i<len; i++) {
-		MMCSPI_DATA = *cp++;
-		while (MMCSPI_CTRL & SPICTRL_BUSY);
+		writeb(*cp++, host->membase);
+		while(readb(host->membase+1) & SPICTRL_BUSY);
 	}
 
 	// send CRC
 
 	c = (u8) ((scratch->crc_val) >> 8);
-	MMCSPI_DATA = c;
-	while (MMCSPI_CTRL & SPICTRL_BUSY);
+	writeb(c, host->membase);
+	while(readb(host->membase+1) & SPICTRL_BUSY);
 
 	c = (u8) (scratch->crc_val);
-	MMCSPI_DATA = c;
-	while (MMCSPI_CTRL & SPICTRL_BUSY);
+	writeb(c, host->membase);
+	while(readb(host->membase+1) & SPICTRL_BUSY);
 
 	/* get write status */
-	MMCSPI_DATA = 0xFF;
-	while (MMCSPI_CTRL & SPICTRL_BUSY);
-	pattern = MMCSPI_DATA << 24;
+	writeb(0xff, host->membase);
+	SPI_WAITBUSY; //while(readb(host->membase+1) & SPICTRL_BUSY);
+	pattern = readb(host->membase) << 24;//MMCSPI_DATA << 24;
 
-	MMCSPI_DATA = 0xFF;
-	while (MMCSPI_CTRL & SPICTRL_BUSY);
-	pattern |= MMCSPI_DATA << 16;
+	writeb(0xff, host->membase);
+	SPI_WAITBUSY; //while(readb(host->membase+1) & SPICTRL_BUSY);
+	pattern |= readb(host->membase) << 16; //MMCSPI_DATA << 16;
 
-	MMCSPI_DATA = 0xFF;
-	while (MMCSPI_CTRL & SPICTRL_BUSY);
-	pattern |= MMCSPI_DATA << 8;
+	writeb(0xff, host->membase);
+	SPI_WAITBUSY; //while(readb(host->membase+1) & SPICTRL_BUSY);
+	pattern |= readb(host->membase) << 8; //MMCSPI_DATA << 8;
 
-	MMCSPI_DATA = 0xFF;
-	while (MMCSPI_CTRL & SPICTRL_BUSY);
-	pattern |= MMCSPI_DATA;
+	writeb(0xff, host->membase);
+	SPI_WAITBUSY; //while(readb(host->membase+1) & SPICTRL_BUSY);
+	pattern |= readb(host->membase); //MMCSPI_DATA;
 
 	
 	p2 = pattern;
@@ -675,17 +718,25 @@ mmc_spi_readblock(struct mmc_spi_host *host, u8 *t, unsigned long timeout, u16 l
 	if (status < 0)
 		return status;
 	status = scratch->status[0];*/
-	MMCSPI_DATA = 0xFF;
+	
+	writeb(0xff, host->membase);
+	SPI_WAITBUSY; //while (readb(host->membase+1) & SPICTRL_BUSY);
+	status = readb(host->membase);
+	
+	/*MMCSPI_DATA = 0xFF;
 	while (MMCSPI_CTRL & SPICTRL_BUSY);
-	status = MMCSPI_DATA;
+	status = MMCSPI_DATA;*/
 	
 	if (status == 0xff || status == 0) {
 		//status = mmc_spi_readtoken(host, timeout);
 		
 		while (1) {
-			MMCSPI_DATA = 0xFF;
+			writeb(0xff, host->membase);
+			SPI_WAITBUSY; //while (readb(host->membase+1) & SPICTRL_BUSY);
+			status = readb(host->membase);
+			/*MMCSPI_DATA = 0xFF;
 			while (MMCSPI_CTRL & SPICTRL_BUSY);
-			status = MMCSPI_DATA;
+			status = MMCSPI_DATA;*/
 
 			if (status != 0xFF)
 				break;
@@ -724,15 +775,17 @@ mmc_spi_readblock(struct mmc_spi_host *host, u8 *t, unsigned long timeout, u16 l
 		//MMCSPI_DATA = 0xFF;
 		//*spi_d = 0xFF;
 		writeb(0xff, host->membase);
+		SPI_WAITBUSY; //while (readb(host->membase+1) & SPICTRL_BUSY);
 		//while (MMCSPI_CTRL & SPICTRL_BUSY);
 		//*cp++ = MMCSPI_DATA; //*spi_d;
 		*cp++ = readb(host->membase);
 	}
 	//cp = t;
 	
-	asm volatile("nop\t\n"
+	/*asm volatile("nop\t\n"
 		    "nop\t\n"
-		    "nop\t\n");
+		    "nop\t\n");*/
+	
 	/*asm volatile("lea 0xf00016,%%a2\t\n"
 		     "movel %1,%%a3\t\n"
 		     "moveb %2,%%d1\t\n"
@@ -754,15 +807,15 @@ mmc_spi_readblock(struct mmc_spi_host *host, u8 *t, unsigned long timeout, u16 l
 	//len = i;
 	
 	// read crc
-	MMCSPI_DATA = 0xFF;
-	while (MMCSPI_CTRL & SPICTRL_BUSY);
-	c = MMCSPI_DATA;
+	writeb(0xff, host->membase);
+	SPI_WAITBUSY; //while(readb(host->membase+1) & SPICTRL_BUSY);
+	c = readb(host->membase);
 	
 	scratch->crc_val = (u16) (c << 8);
 	
-	MMCSPI_DATA = 0xFF;
-	while (MMCSPI_CTRL & SPICTRL_BUSY);
-	c = MMCSPI_DATA;
+	writeb(0xff, host->membase);
+	SPI_WAITBUSY; //while(readb(host->membase+1) & SPICTRL_BUSY);
+	c = readb(host->membase);
 
 	scratch->crc_val |= (u16) c;
 
@@ -856,11 +909,11 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 			if (direction == DMA_TO_DEVICE) {
 			
 				if (multiple) {
-					MMCSPI_DATA = SPI_TOKEN_MULTI_WRITE;
+					writeb(SPI_TOKEN_MULTI_WRITE, host->membase);
 				} else {
-					MMCSPI_DATA = SPI_TOKEN_SINGLE;
+					writeb(SPI_TOKEN_SINGLE, host->membase);
 				}
-				while (MMCSPI_CTRL & SPICTRL_BUSY);
+				while(readb(host->membase+1) & SPICTRL_BUSY);
 				
 				status = mmc_spi_writeblock(host, cp, timeout, tlen);
 				cp += tlen;
@@ -904,16 +957,16 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		int		tmp;
 		u8 c;
 		
-		MMCSPI_DATA = SPI_TOKEN_STOP_TRAN;
-		while (MMCSPI_CTRL & SPICTRL_BUSY);
+		writeb(SPI_TOKEN_STOP_TRAN, host->membase);
+		while(readb(host->membase+1) & SPICTRL_BUSY);
 
-		MMCSPI_DATA = SPI_TOKEN_STOP_TRAN;
-		while (MMCSPI_CTRL & SPICTRL_BUSY);
+		writeb(SPI_TOKEN_STOP_TRAN, host->membase);
+		while(readb(host->membase+1) & SPICTRL_BUSY);
 
-		MMCSPI_DATA = SPI_TOKEN_STOP_TRAN;
-		while (MMCSPI_CTRL & SPICTRL_BUSY);
+		writeb(SPI_TOKEN_STOP_TRAN, host->membase);
+		while(readb(host->membase+1) & SPICTRL_BUSY);
 		
-		c = MMCSPI_DATA;
+		c = readb(host->membase);
 		if (c != 0)
 		    return;
 
@@ -936,7 +989,11 @@ static void mmc_spi_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	int			status = -EINVAL;
 	int			crc_retry = 5;
 	struct mmc_command	stop;
+	
+	//unsigned long flags;
 
+
+	//local_irq_save(flags);
 
 crc_recover:
 
@@ -958,12 +1015,15 @@ crc_recover:
 		if (mrq->stop)
 			status = mmc_spi_command_send(host, mrq, mrq->stop, 0);
 		else
-		  MMCSPI_CTRL = SPICTRL_EN | SPI_SPEED;
+		  writeb(SPICTRL_EN | SPI_SPEED, host->membase+1);
 		  //mmc_cs_off(host);
 	
 	}
-	
+
+	//local_irq_restore(flags);
+
 	mmc_request_done(host->mmc, mrq);
+	
 }
 
 /* See Section 6.4.1, in SD "Simplified Physical Layer Specification 2.0"
@@ -984,11 +1044,11 @@ static void mmc_spi_initsequence(struct mmc_spi_host *host)
 	mmc_spi_wait_unbusy(host, r1b_timeout);
 
 	// chip select high 
-	MMCSPI_CTRL = SPICTRL_EN | SPI_SPEED;
+	writeb(SPICTRL_EN | SPI_SPEED, host->membase+1);
 		
 	for (i = 0; i < 10; i++) {
-		MMCSPI_DATA = 0xFF;
-		while (MMCSPI_CTRL & SPICTRL_BUSY);
+		writeb(0xff, host->membase);
+		while(readb(host->membase+1) & SPICTRL_BUSY);
 	}
 }
 
