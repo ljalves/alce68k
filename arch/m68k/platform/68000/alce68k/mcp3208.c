@@ -151,8 +151,8 @@ static const struct iio_info mcp3208_adc_info = {
 		.type = _type,					\
 		.indexed = 1,					\
 		.channel = ADC_##_id,				\
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,	\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
+			BIT(IIO_CHAN_INFO_SCALE),	\
 		.datasheet_name = #_id,				\
 }
 
